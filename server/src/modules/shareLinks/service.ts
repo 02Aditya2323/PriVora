@@ -196,10 +196,26 @@ export class ShareLinksService {
     // Password verification
     if (link.password_hash) {
       if (!password) {
+        await audit.log({
+          action: 'share.redeem_denied',
+          targetType: 'share_link',
+          targetId: link.id,
+          roomId: link.room_id,
+          outcome: 'denied',
+          metadata: { reason: 'Password required', fileId: link.file_id },
+        });
         throw AppError.badRequest('Password required to access this file', 'PASSWORD_REQUIRED');
       }
       const valid = await verifyPassword(link.password_hash, password);
       if (!valid) {
+        await audit.log({
+          action: 'share.redeem_denied',
+          targetType: 'share_link',
+          targetId: link.id,
+          roomId: link.room_id,
+          outcome: 'denied',
+          metadata: { reason: 'Invalid password', fileId: link.file_id },
+        });
         throw AppError.unauthorized('Incorrect share link password', 'INVALID_PASSWORD');
       }
     }
@@ -215,6 +231,14 @@ export class ShareLinksService {
     );
 
     if (updateRes.rows.length === 0) {
+      await audit.log({
+        action: 'share.redeem_denied',
+        targetType: 'share_link',
+        targetId: link.id,
+        roomId: link.room_id,
+        outcome: 'denied',
+        metadata: { reason: 'Download limit reached or expired during redeem', fileId: link.file_id },
+      });
       throw AppError.notFound('Share link unavailable or download cap reached', 'SHARE_LINK_UNAVAILABLE');
     }
 

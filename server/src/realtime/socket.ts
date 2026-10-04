@@ -3,6 +3,13 @@ import { verifyAccessToken } from '../crypto/tokens';
 import { db } from '../db/pool';
 import { logger } from '../utils/logger';
 import { presence } from './presence';
+import {
+  validateSocketOrigin,
+  enforceUserConnectionCap,
+  cleanupUserConnection,
+  scheduleTokenExpiryDisconnect,
+  applySocketRateLimiting,
+} from './hardening';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -11,12 +18,21 @@ export interface SocketUser {
   username: string;
   email: string;
   globalRole: string;
+  exp?: number;
 }
 
 export function setupSocketIO(io: SocketIOServer): void {
-  // 1. Handshake Authentication Middleware (Spec §8.2)
+  // 1. Handshake Authentication & Security Middleware (Spec §8.2, §8.7, §7.13)
   io.use(async (socket: Socket, next) => {
     try {
+      // 1.1 Validate Origin header against CORS_ORIGIN
+      const originHeader = socket.handshake.headers.origin;
+      if (!validateSocketOrigin(originHeader)) {
+        logger.warn({ origin: originHeader }, '[WS HARDENING] WebSocket connection rejected: Origin mismatch');
+        return next(new Error('Origin not allowed'));
+      }
+
+      // 1.2 Validate Access Token in auth.token handshake payload
       const token = socket.handshake.auth?.token;
       if (!token || typeof token !== 'string') {
         return next(new Error('Authentication token required in auth.token handshake'));
@@ -24,7 +40,7 @@ export function setupSocketIO(io: SocketIOServer): void {
 
       const payload = verifyAccessToken(token);
 
-      // Verify user validity and active status in DB
+      // 1.3 Verify user validity and active status in DB
       const result = await db.query(
         'SELECT id, username, email, global_role AS "globalRole", locked_until FROM users WHERE id = $1',
         [payload.sub]
@@ -39,11 +55,17 @@ export function setupSocketIO(io: SocketIOServer): void {
         return next(new Error('Account is locked'));
       }
 
+      // 1.4 Enforce per-user connection cap
+      if (!enforceUserConnectionCap(user.id, socket.id)) {
+        return next(new Error('Connection cap exceeded for this user'));
+      }
+
       socket.data.user = {
         id: user.id,
         username: user.username,
         email: user.email,
         globalRole: user.globalRole,
+        exp: payload.exp,
       };
 
       next();
@@ -53,10 +75,18 @@ export function setupSocketIO(io: SocketIOServer): void {
     }
   });
 
-  // 2. Connection and Event Handling (Spec §8.3, §8.5, §8.6)
+  // 2. Connection and Event Handling (Spec §8.3, §8.5, §8.6, §8.7)
   io.on('connection', (socket: Socket) => {
     const user = socket.data.user as SocketUser;
     logger.debug({ userId: user.id, socketId: socket.id }, 'Socket client connected');
+
+    // 2.1 Schedule automatic disconnect on token expiration
+    if (user.exp) {
+      scheduleTokenExpiryDisconnect(socket, user.exp);
+    }
+
+    // 2.2 Apply per-socket token-bucket rate limiting (20 events / 10s)
+    applySocketRateLimiting(socket);
 
     // Automatically join private room for personal notifications
     socket.join(`user:${user.id}`);
@@ -138,6 +168,7 @@ export function setupSocketIO(io: SocketIOServer): void {
     // Disconnect cleanup
     socket.on('disconnect', () => {
       logger.debug({ userId: user.id, socketId: socket.id }, 'Socket client disconnected');
+      cleanupUserConnection(user.id, socket.id);
       const transitions = presence.cleanupSocket(socket.id, user.id);
 
       for (const t of transitions) {

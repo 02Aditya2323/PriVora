@@ -356,3 +356,189 @@ Standard error shape:
   "message": "File deleted successfully"
 }
 ```
+
+---
+
+## 4. Secure Share Links (`/api/rooms/:roomId/files/:fileId/share-links` & `/api/s/:key`)
+
+### 4.1 Create Share Link
+- **Method:** `POST /api/rooms/:roomId/files/:fileId/share-links`
+- **Headers:** `Authorization: Bearer <accessToken>`
+- **Min Role:** `editor`
+- **Request Body:**
+```json
+{
+  "expiresInMinutes": 60,
+  "maxDownloads": 5,
+  "password": "optional_link_password"
+}
+```
+- **Response `201 Created`:**
+```json
+{
+  "shareLink": {
+    "id": "7f8b9c0d-1e2f-3a4b-5c6d-7e8f9a0b1c2d",
+    "key": "pk_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+    "shareUrl": "/s/pk_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+    "expiresAt": "2026-10-04T03:20:00.000Z",
+    "maxDownloads": 5,
+    "downloadCount": 0,
+    "hasPassword": true,
+    "createdAt": "2026-10-04T02:20:00.000Z"
+  }
+}
+```
+*(Note: `key` and `shareUrl` are only returned once upon creation! Only the argon2id hash is stored.)*
+
+---
+
+### 4.2 List Share Links for File
+- **Method:** `GET /api/rooms/:roomId/files/:fileId/share-links`
+- **Headers:** `Authorization: Bearer <accessToken>`
+- **Min Role:** `editor`
+- **Response `200 OK`:**
+```json
+{
+  "shareLinks": [
+    {
+      "id": "7f8b9c0d-1e2f-3a4b-5c6d-7e8f9a0b1c2d",
+      "fileId": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+      "creatorId": "c85d7747-814f-4d37-8f5b-b9fb75630324",
+      "creatorUsername": "alice_vault",
+      "expiresAt": "2026-10-04T03:20:00.000Z",
+      "maxDownloads": 5,
+      "downloadCount": 1,
+      "hasPassword": true,
+      "revokedAt": null,
+      "createdAt": "2026-10-04T02:20:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### 4.3 Revoke Share Link
+- **Method:** `DELETE /api/rooms/:roomId/share-links/:linkId`
+- **Headers:** `Authorization: Bearer <accessToken>`
+- **Min Role:** `owner` (any link) or `editor` (own link only)
+- **Response `200 OK`:**
+```json
+{
+  "message": "Share link revoked successfully"
+}
+```
+
+---
+
+### 4.4 Get Public Share File Metadata
+- **Method:** `GET /api/s/:key/meta`
+- **Auth:** None (Public)
+- **Rate Limit:** 30 req / 10 min per IP
+- **Response `200 OK`:**
+```json
+{
+  "file": {
+    "id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+    "name": "annual_financial_report.pdf",
+    "size": 1048576,
+    "detectedType": "application/pdf",
+    "hasPassword": true,
+    "expiresAt": "2026-10-04T03:20:00.000Z",
+    "downloadsRemaining": 4
+  }
+}
+```
+*(Returns `404 Not Found` uniformly if expired, revoked, max downloads exceeded, or invalid key)*
+
+---
+
+### 4.5 Download Shared File
+- **Method:** `POST /api/s/:key/download`
+- **Auth:** None (Public)
+- **Rate Limit:** 30 req / 10 min per IP
+- **Request Body (if password protected):**
+```json
+{
+  "password": "optional_link_password"
+}
+```
+- **Response `200 OK`:**
+  - `Content-Type: application/octet-stream`
+  - `Content-Disposition: attachment; filename*=UTF-8''annual_financial_report.pdf`
+  - `X-Content-Type-Options: nosniff`
+  - `Cache-Control: no-store`
+  - Binary file stream body.
+*(Returns `404 Not Found` if expired/revoked/invalid, `401 Unauthorized` if invalid password)*
+
+---
+
+## 5. Admin & Audit Logs (`/api/admin`)
+
+### 5.1 Query Audit Logs
+- **Method:** `GET /api/admin/audit-logs`
+- **Headers:** `Authorization: Bearer <accessToken>` (Must have `globalRole === 'admin'`)
+- **Query Params:**
+  - `actor`: UUID filter for actor ID
+  - `action`: Filter by action pattern (e.g. `auth.`, `file.`, `share.`)
+  - `outcome`: `success` | `denied` | `failure`
+  - `from`: ISO timestamp start range
+  - `to`: ISO timestamp end range
+  - `limit`: Number of records (1-200, default 50)
+  - `offset`: Pagination offset (default 0)
+- **Response `200 OK`:**
+```json
+{
+  "logs": [
+    {
+      "id": "e1f2a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+      "ts": "2026-10-04T02:22:00.000Z",
+      "actorId": "c85d7747-814f-4d37-8f5b-b9fb75630324",
+      "action": "file.upload",
+      "targetType": "file",
+      "targetId": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+      "roomId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+      "outcome": "success",
+      "ip": "127.0.0.1",
+      "userAgent": "Mozilla/5.0 ...",
+      "metadata": {
+        "fileName": "annual_financial_report.pdf",
+        "fileSize": 1048576,
+        "mime": "application/pdf"
+      }
+    }
+  ],
+  "total": 142,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+---
+
+### 5.2 Lock / Unlock User Account
+- **Method:** `PATCH /api/admin/users/:userId/lock`
+- **Headers:** `Authorization: Bearer <accessToken>` (Must have `globalRole === 'admin'`)
+- **Request Body (Lock):**
+```json
+{
+  "locked": true,
+  "durationMinutes": 1440,
+  "reason": "Suspicious brute force activity detected"
+}
+```
+- **Response `200 OK`:**
+```json
+{
+  "message": "User account locked successfully",
+  "user": {
+    "id": "e4f8d9b1-7a2e-4b9c-8d1e-3f5a7b9c1d3e",
+    "username": "bob_editor",
+    "email": "bob@example.com",
+    "lockedUntil": "2026-10-05T02:25:00.000Z",
+    "failedLoginCount": 0
+  }
+}
+```
+*(Locking revokes all active sessions for that user immediately and emits a `session:revoked` event).*
+

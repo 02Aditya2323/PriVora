@@ -1,6 +1,6 @@
 services:
   minio:
-    image: elestio/minio:latest
+    image: cleanstart/minio:latest
     container_name: privora-minio
     command: server /data --console-address ":9001"
     environment:

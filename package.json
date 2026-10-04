@@ -1,0 +1,14 @@
+{
+  "name": "privora-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Privora Secure File Sharing System",
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build:server": "npm --prefix server run build",
+    "build:client": "npm --prefix client run build",
+    "test": "npm --prefix server test",
+    "migrate": "npm --prefix server run migrate"
+  }
+}

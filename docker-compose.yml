@@ -1,0 +1,67 @@
+services:
+  minio:
+    image: elestio/minio:latest
+    container_name: privora-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-privora_minio_admin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-privora_minio_secret_key_123!}
+    volumes:
+      - minio_data:/data
+    networks:
+      - internal
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: privora-api
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@host.docker.internal:5432/privora}
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
+      FILE_KEK_V1: ${FILE_KEK_V1}
+      FILE_KEK_CURRENT_VERSION: ${FILE_KEK_CURRENT_VERSION:-1}
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET:-privora-vault}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-privora_minio_admin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-privora_minio_secret_key_123!}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
+      USER_QUOTA_BYTES: ${USER_QUOTA_BYTES:-524288000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - minio
+    networks:
+      - edge
+      - internal
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    container_name: privora-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+    networks:
+      - edge
+    restart: unless-stopped
+
+volumes:
+  minio_data:
+
+networks:
+  edge:
+    driver: bridge
+  internal:
+    driver: bridge

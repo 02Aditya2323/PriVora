@@ -29,7 +29,11 @@ export function validateSocketOrigin(originHeader?: string): boolean {
   try {
     const allowed = new URL(env.CORS_ORIGIN).origin;
     const incoming = new URL(originHeader).origin;
-    return allowed === incoming;
+    if (allowed === incoming) return true;
+    if (env.NODE_ENV !== 'production' && (incoming === 'http://localhost:5173' || incoming === 'http://localhost:5174')) {
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }

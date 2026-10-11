@@ -21,6 +21,7 @@ export function applySecurity(app: Express): void {
   app.disable('x-powered-by');
 
   // 1. Helmet Security Headers
+  const devOrigins = ['http://localhost:5173', 'http://localhost:5174'];
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -29,7 +30,7 @@ export function applySecurity(app: Express): void {
           scriptSrc: ["'self'"],
           styleSrc: ["'self'"],
           imgSrc: ["'self'", 'data:'],
-          connectSrc: ["'self'", 'ws:', 'wss:', env.CORS_ORIGIN],
+          connectSrc: ["'self'", 'ws:', 'wss:', env.CORS_ORIGIN, ...(env.NODE_ENV !== 'production' ? devOrigins : [])],
           objectSrc: ["'none'"],
           baseUri: ["'self'"],
           formAction: ["'self'"],
@@ -60,7 +61,11 @@ export function applySecurity(app: Express): void {
     cors({
       origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps, curl, server-to-server) or exact matching origin
-        if (!origin || new URL(origin).origin === allowedOrigin) {
+        if (
+          !origin ||
+          new URL(origin).origin === allowedOrigin ||
+          (env.NODE_ENV !== 'production' && devOrigins.includes(new URL(origin).origin))
+        ) {
           callback(null, true);
         } else {
           logger.warn({ rejectedOrigin: origin, allowedOrigin }, '[CORS] Request origin blocked by CORS policy');

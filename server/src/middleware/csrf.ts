@@ -38,26 +38,27 @@ export function csrfGuard(req: Request, _res: Response, next: NextFunction): voi
   const referer = req.headers['referer'];
 
   const allowedOrigin = new URL(env.CORS_ORIGIN).origin;
+  const isAllowedOrigin = (urlStr: string) => {
+    try {
+      const o = new URL(urlStr).origin;
+      return (
+        o === allowedOrigin ||
+        (env.NODE_ENV !== 'production' && (o === 'http://localhost:5173' || o === 'http://localhost:5174'))
+      );
+    } catch {
+      return false;
+    }
+  };
 
   if (origin) {
-    try {
-      const requestOrigin = new URL(origin).origin;
-      if (requestOrigin !== allowedOrigin) {
-        logger.warn({ ip: req.ip, origin, allowedOrigin }, '[CSRF Guard] Origin mismatch');
-        throw AppError.forbidden('CSRF validation failed: Origin mismatch', 'CSRF_REJECTED');
-      }
-    } catch {
-      throw AppError.forbidden('CSRF validation failed: Malformed Origin header', 'CSRF_REJECTED');
+    if (!isAllowedOrigin(origin)) {
+      logger.warn({ ip: req.ip, origin, allowedOrigin }, '[CSRF Guard] Origin mismatch');
+      throw AppError.forbidden('CSRF validation failed: Origin mismatch', 'CSRF_REJECTED');
     }
   } else if (referer) {
-    try {
-      const refererOrigin = new URL(referer).origin;
-      if (refererOrigin !== allowedOrigin) {
-        logger.warn({ ip: req.ip, referer, allowedOrigin }, '[CSRF Guard] Referer origin mismatch');
-        throw AppError.forbidden('CSRF validation failed: Referer mismatch', 'CSRF_REJECTED');
-      }
-    } catch {
-      throw AppError.forbidden('CSRF validation failed: Malformed Referer header', 'CSRF_REJECTED');
+    if (!isAllowedOrigin(referer)) {
+      logger.warn({ ip: req.ip, referer, allowedOrigin }, '[CSRF Guard] Referer origin mismatch');
+      throw AppError.forbidden('CSRF validation failed: Referer mismatch', 'CSRF_REJECTED');
     }
   } else if (env.NODE_ENV === 'production') {
     // In production, require at least one origin signal

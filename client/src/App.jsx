@@ -76,7 +76,7 @@ export default function App() {
 
 function Shell() {
   const { user, logout } = useApp();
-  const admin = user.role === 'admin' || user.isAdmin;
+  const admin = user.globalRole === 'admin' || user.role === 'admin' || user.isAdmin;
   return (
     <>
       <header className="bar">
@@ -157,23 +157,71 @@ function Rooms() {
   const nav = useNavigate();
   const [rooms, setRooms] = useState(null);
   const [name, setName] = useState('');
+  const [joinModal, setJoinModal] = useState(false);
+  const [joinKey, setJoinKey] = useState('');
+  const [joinPw, setJoinPw] = useState('');
+  const [joining, setJoining] = useState(false);
+
   useEffect(() => {
     api('/rooms').then((d) => setRooms(list(d, 'rooms'))).catch((e) => { toast(e.message, 'err'); setRooms([]); });
+
+    // Auto-detect invite keys in URL query params (?joinKey=... or ?key=...)
+    const params = new URLSearchParams(window.location.search);
+    const k = params.get('joinKey') || params.get('key');
+    if (k) {
+      setJoinKey(k.trim());
+      setJoinModal(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
+
   const create = async (e) => {
     e.preventDefault();
     try { const d = await api('/rooms', { method: 'POST', body: { name } }); nav(`/rooms/${(d.room ?? d).id}`); }
     catch (x) { toast(x.message, 'err'); }
   };
+
+  const doJoin = async (e) => {
+    e.preventDefault();
+    let k = joinKey.trim();
+    if (k.includes('joinKey=')) {
+      try {
+        const u = new URL(k);
+        k = u.searchParams.get('joinKey') || k;
+      } catch {
+        const m = k.match(/joinKey=([^&]+)/);
+        if (m) k = m[1];
+      }
+    }
+    if (!k) return;
+    setJoining(true);
+    try {
+      const d = await api('/rooms/join', { method: 'POST', body: { key: k, password: joinPw.trim() || undefined } });
+      toast(d.alreadyMember ? 'Already a member! Opening room...' : 'Successfully joined room!', 'ok');
+      setJoinModal(false);
+      nav(`/rooms/${d.room.id}`);
+    } catch (x) {
+      toast(x.message, 'err');
+    } finally {
+      setJoining(false);
+    }
+  };
+
   return (
     <>
-      <div className="row"><div className="grow"><h2>Your rooms</h2><span className="muted">Private spaces for sharing files with the people you choose.</span></div></div>
+      <div className="row">
+        <div className="grow">
+          <h2>Your rooms</h2>
+          <span className="muted">Private spaces for sharing files with the people you choose.</span>
+        </div>
+        <button className="btn" onClick={() => setJoinModal(true)}>🔑 Join with key</button>
+      </div>
       <form className="row card" onSubmit={create}>
         <input className="grow" required maxLength={80} placeholder="New room name" value={name} onChange={(e) => setName(e.target.value)} />
         <button className="btn primary">Create room</button>
       </form>
       {rooms === null ? <p className="muted">Loading…</p> : rooms.length === 0 ? (
-        <div className="empty"><div className="vault">🔒</div><b>Your vault is empty</b><br />Name a room above to create your first one.</div>
+        <div className="empty"><div className="vault">🔒</div><b>Your vault is empty</b><br />Name a room above or join with an invite key.</div>
       ) : (
         <div className="grid">
           {rooms.map((r) => (
@@ -183,6 +231,36 @@ function Rooms() {
             </Link>
           ))}
         </div>
+      )}
+
+      {joinModal && (
+        <Modal title="Join room with key" onClose={() => setJoinModal(false)}>
+          <form className="stack" onSubmit={doJoin}>
+            <label>
+              Join key or invite link
+              <input
+                className="mono"
+                required
+                autoFocus
+                placeholder="43-character base64url key or ?joinKey=..."
+                value={joinKey}
+                onChange={(e) => setJoinKey(e.target.value)}
+              />
+            </label>
+            <label>
+              Key password (optional)
+              <input
+                type="password"
+                placeholder="Leave blank if not password-protected"
+                value={joinPw}
+                onChange={(e) => setJoinPw(e.target.value)}
+              />
+            </label>
+            <button className="btn primary" disabled={joining}>
+              {joining ? 'Verifying...' : 'Join room'}
+            </button>
+          </form>
+        </Modal>
       )}
     </>
   );
@@ -195,6 +273,7 @@ function Room() {
   const [room, setRoom] = useState(null);
   const [files, setFiles] = useState([]);
   const [members, setMembers] = useState([]);
+  const [keys, setKeys] = useState([]);
   const [online, setOnline] = useState([]);
   const [share, setShare] = useState(null);
   const [prog, setProg] = useState(null);
@@ -203,9 +282,10 @@ function Room() {
 
   const loadFiles = useCallback(() => api(`/rooms/${roomId}/files`).then((d) => setFiles(list(d, 'files'))), [roomId]);
   const loadMembers = useCallback(() => api(`/rooms/${roomId}/members`).then((d) => setMembers(list(d, 'members'))), [roomId]);
+  const loadKeys = useCallback(() => api(`/rooms/${roomId}/join-keys`).then((d) => setKeys(list(d, 'joinKeys'))).catch(() => {}), [roomId]);
 
   useEffect(() => {
-    Promise.all([api(`/rooms/${roomId}`), loadFiles(), loadMembers()])
+    Promise.all([api(`/rooms/${roomId}`), loadFiles(), loadMembers(), loadKeys()])
       .then(([r]) => setRoom(r.room ?? r))
       .catch((e) => { toast(e.message, 'err'); nav('/rooms'); });
   }, [roomId]);
@@ -219,8 +299,8 @@ function Room() {
       'presence:update': (d) => mine(d) && setOnline((o) => d.status === 'online' ? [...o.filter((u) => u.userId !== d.userId), d] : o.filter((u) => u.userId !== d.userId)),
       'file:uploaded': (d) => mine(d) && setFiles((f) => f.some((x) => x.id === d.file.id) ? f : [d.file, ...f]),
       'file:deleted': (d) => mine(d) && setFiles((f) => f.filter((x) => x.id !== d.fileId)),
-      'member:added': (d) => mine(d) && loadMembers(),
-      'member:removed': (d) => mine(d) && loadMembers(),
+      'member:added': (d) => mine(d) && (loadMembers(), loadKeys()),
+      'member:removed': (d) => mine(d) && (loadMembers(), loadKeys()),
       'member:role_changed': (d) => mine(d) && loadMembers(),
       'room:access_revoked': (d) => { if (mine(d)) { toast('Your access to this room was removed', 'err'); nav('/rooms'); } },
     };
@@ -237,8 +317,11 @@ function Room() {
   const canEdit = owner || role === 'editor';
 
   const doUpload = async (fl) => {
+    const blockedExts = ['exe', 'dll', 'bat', 'sh', 'html', 'htm', 'svg', 'js'];
     for (const f of fl) {
       if (f.size > MAX) { toast(`${f.name} is over the 25 MB limit`, 'err'); continue; }
+      const ext = f.name.split('.').pop()?.toLowerCase();
+      if (ext && blockedExts.includes(ext)) { toast(`Files with extension .${ext} are prohibited for security`, 'err'); continue; }
       try { setProg({ name: f.name, pct: 0 }); await upload(roomId, f, (pct) => setProg({ name: f.name, pct })); toast(`Uploaded ${f.name}`, 'ok'); }
       catch (e) { toast(`${f.name}: ${e.message}`, 'err'); }
     }
@@ -286,6 +369,7 @@ function Room() {
       <div className="tabs">
         <button className={tab === 'files' ? 'on' : ''} onClick={() => setTab('files')}>Files ({files.length})</button>
         <button className={tab === 'members' ? 'on' : ''} onClick={() => setTab('members')}>Members ({members.length})</button>
+        {owner && <button className={tab === 'keys' ? 'on' : ''} onClick={() => setTab('keys')}>Join Keys ({keys.length})</button>}
       </div>
 
       {tab === 'files' && (
@@ -328,6 +412,7 @@ function Room() {
       )}
 
       {tab === 'members' && <Members roomId={roomId} members={members} owner={owner} me={user.id} onlineIds={onlineIds} reload={loadMembers} />}
+      {tab === 'keys' && owner && <JoinKeys roomId={roomId} keys={keys} reload={loadKeys} />}
       {share && <ShareDialog roomId={roomId} file={share} onClose={() => setShare(null)} />}
     </>
   );
@@ -374,13 +459,133 @@ function Members({ roomId, members, owner, me, onlineIds, reload }) {
   );
 }
 
+function JoinKeys({ roomId, keys, reload }) {
+  const { toast } = useApp();
+  const [created, setCreated] = useState(null);
+  const [openModal, setOpenModal] = useState(false);
+  const [f, setF] = useState({ role: 'viewer', expiresInHours: 24, maxUses: '', password: '' });
+  const [busy, setBusy] = useState(false);
+
+  const create = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    const body = { role: f.role, expiresInHours: +f.expiresInHours };
+    if (f.maxUses) body.maxUses = +f.maxUses;
+    if (f.password) body.password = f.password;
+    try {
+      const d = await api(`/rooms/${roomId}/join-keys`, { method: 'POST', body });
+      const k = d.joinKey?.key ?? d.key;
+      setCreated(k);
+      reload();
+    } catch (x) {
+      toast(x.message, 'err');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revoke = async (id) => {
+    if (!confirm('Revoke this join key? Anyone with it will no longer be able to join.')) return;
+    try {
+      await api(`/rooms/${roomId}/join-keys/${id}`, { method: 'DELETE' });
+      reload();
+      toast('Join key revoked', 'ok');
+    } catch (x) {
+      toast(x.message, 'err');
+    }
+  };
+
+  const copyKey = () => navigator.clipboard.writeText(created).then(() => toast('Key copied', 'ok'));
+  const copyLink = () => navigator.clipboard.writeText(`${location.origin}/?joinKey=${created}`).then(() => toast('Invite link copied', 'ok'));
+
+  return (
+    <>
+      <div className="row">
+        <span className="muted grow">Active cryptographic join keys for this room</span>
+        <button className="btn primary" onClick={() => { setCreated(null); setOpenModal(true); }}>Generate join key</button>
+      </div>
+
+      {openModal && (
+        <Modal title="Generate Room Join Key" onClose={() => setOpenModal(false)}>
+          {created ? (
+            <div className="stack">
+              <div className="alert warn">
+                <b>Security notice:</b> PriVora stores only the SHA-256 hash. This plaintext key will never be shown again!
+              </div>
+              <label>Raw Join Key
+                <div className="row">
+                  <input className="grow mono" readOnly value={created} onFocus={(e) => e.target.select()} />
+                  <button className="btn primary" onClick={copyKey}>Copy</button>
+                </div>
+              </label>
+              <label>Invite Link
+                <div className="row">
+                  <input className="grow mono" readOnly value={`${location.origin}/?joinKey=${created}`} onFocus={(e) => e.target.select()} />
+                  <button className="btn" onClick={copyLink}>Copy Link</button>
+                </div>
+              </label>
+              <button className="btn" onClick={() => setCreated(null)}>Create another</button>
+            </div>
+          ) : (
+            <form className="stack" onSubmit={create}>
+              <label>Role assigned
+                <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
+                  <option value="viewer">Viewer (Read & download)</option>
+                  <option value="editor">Editor (Upload & manage)</option>
+                </select>
+              </label>
+              <label>Expires after
+                <select value={f.expiresInHours} onChange={(e) => setF({ ...f, expiresInHours: e.target.value })}>
+                  <option value={1}>1 hour</option>
+                  <option value={6}>6 hours</option>
+                  <option value={24}>24 hours (1 day)</option>
+                  <option value={72}>3 days</option>
+                  <option value={168}>7 days</option>
+                </select>
+              </label>
+              <label>Usage limit
+                <select value={f.maxUses} onChange={(e) => setF({ ...f, maxUses: e.target.value })}>
+                  <option value="">Unlimited uses</option>
+                  <option value="1">Single-use (burn after join)</option>
+                  <option value="5">5 uses</option>
+                  <option value="10">10 uses</option>
+                </select>
+              </label>
+              <label>Optional key password
+                <input type="password" placeholder="Leave empty for open join" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
+              </label>
+              <button className="btn primary" disabled={busy}>{busy ? 'Generating...' : 'Generate key'}</button>
+            </form>
+          )}
+        </Modal>
+      )}
+
+      {keys.length === 0 ? (
+        <div className="empty">No active join keys. Click "Generate join key" to create an invite link.</div>
+      ) : (
+        <div className="card flush">
+          {keys.map((k) => (
+            <div key={k.id} className="row member">
+              <span className={'pill ' + k.role}>{k.role}</span>
+              <span className="grow muted">
+                Expires {when(k.expiresAt)} · {k.useCount ?? 0}{k.maxUses ? `/${k.maxUses}` : ''} uses{k.requiresPassword ? ' · password-protected' : ''}
+              </span>
+              <button className="btn danger ghost" onClick={() => revoke(k.id)}>Revoke</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 function ShareDialog({ roomId, file, onClose }) {
   const { toast } = useApp();
   const [links, setLinks] = useState([]);
   const [created, setCreated] = useState(null);
   const [f, setF] = useState({ expiresInMinutes: 60, maxDownloads: '', password: '' });
   const base = `/rooms/${roomId}/files/${file.id}/share-links`;
-  const load = () => api(base).then((d) => setLinks(list(d, 'links'))).catch(() => {});
+  const load = () => api(base).then((d) => setLinks(list(d, 'shareLinks') || list(d, 'links'))).catch(() => {});
   useEffect(() => { load(); }, []);
 
   const create = async (e) => {
@@ -390,7 +595,7 @@ function ShareDialog({ roomId, file, onClose }) {
     if (f.password) body.password = f.password;
     try {
       const d = await api(base, { method: 'POST', body });
-      const key = d.key ?? d.shareKey ?? d.token;
+      const key = d.key ?? d.shareKey ?? d.shareLink?.key ?? d.token;
       if (!key) throw new Error('The server did not return a share key');
       setCreated(`${location.origin}/s/${key}`); load();
     } catch (x) { toast(x.message, 'err'); }

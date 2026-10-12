@@ -8,9 +8,6 @@ import { env } from '../../config/env';
 
 export const authRouter = Router();
 
-// Apply auth rate limiter per spec §7.5
-authRouter.use(limiters.auth);
-
 const registerSchema = z
   .object({
     email: z.string().email('Invalid email address').max(255),
@@ -40,9 +37,10 @@ const cookieOptions = {
   maxAge: env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
 };
 
-// 1. POST /api/auth/register
+// 1. POST /api/auth/register (protected by limiters.auth per spec §7.5)
 authRouter.post(
   '/register',
+  limiters.auth,
   validate({ body: registerSchema }),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -61,9 +59,10 @@ authRouter.post(
   }
 );
 
-// 2. POST /api/auth/login
+// 2. POST /api/auth/login (protected by limiters.auth per spec §7.5)
 authRouter.post(
   '/login',
+  limiters.auth,
   validate({ body: loginSchema }),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

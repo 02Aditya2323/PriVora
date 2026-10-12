@@ -24,6 +24,7 @@ const rateLimitErrorHandler = (message: string) => {
  * express app with its own fresh limiter instance, so it is unaffected.
  */
 const isTest = process.env.NODE_ENV === 'test';
+const isDev = process.env.NODE_ENV === 'development';
 const noopMiddleware: RequestHandler = (_req, _res, next) => next();
 
 /**
@@ -40,10 +41,11 @@ export const testLimiters = {
   }),
   auth: rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 10,
+    max: 50,
+    skipSuccessfulRequests: true,
     standardHeaders: true,
     legacyHeaders: false,
-    handler: rateLimitErrorHandler('Too many authentication attempts, please try again in 15 minutes.'),
+    handler: rateLimitErrorHandler('Too many authentication attempts, please try again in a few minutes.'),
   }),
   upload: rateLimit({
     windowMs: 60 * 60 * 1000,
@@ -69,8 +71,8 @@ export const testLimiters = {
  * Uses in-memory stores for single-instance Privora deployment.
  *
  * Tiers:
- * 1. global: 300 requests / 15 min per IP
- * 2. auth: 10 requests / 15 min per IP (/auth/login, /auth/register)
+ * 1. global: 300 requests / 15 min per IP (1000 in dev)
+ * 2. auth: failed login/register attempts only (skipSuccessfulRequests: true)
  * 3. upload: 30 requests / 1 hour per user (or IP if unauthenticated)
  * 4. share: 30 requests / 10 min per IP (/s/*)
  *
@@ -84,7 +86,7 @@ export const limiters = {
     ? noopMiddleware
     : rateLimit({
         windowMs: 15 * 60 * 1000,
-        max: 300,
+        max: isDev ? 1000 : 300,
         standardHeaders: true,
         legacyHeaders: false,
         handler: rateLimitErrorHandler('Too many requests across the API, please try again later.'),
@@ -94,11 +96,12 @@ export const limiters = {
   auth: isTest
     ? noopMiddleware
     : rateLimit({
-        windowMs: 15 * 60 * 1000,
-        max: 10,
+        windowMs: isDev ? 5 * 60 * 1000 : 15 * 60 * 1000,
+        max: isDev ? 100 : 50,
+        skipSuccessfulRequests: true,
         standardHeaders: true,
         legacyHeaders: false,
-        handler: rateLimitErrorHandler('Too many authentication attempts, please try again in 15 minutes.'),
+        handler: rateLimitErrorHandler('Too many authentication attempts, please try again in a few minutes.'),
       }),
 
   // 3. File upload rate limit (prevents disk & bandwidth exhaustion)

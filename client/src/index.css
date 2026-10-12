@@ -1,0 +1,432 @@
+/* ==========================================================================
+   PriVora Theme System: Dual-Mode Architecture
+   Dark Mode: Original Midnight Obsidian Glassmorphism (Default)
+   Light Mode: Ashutosh's Vault Brass & Sage Architectural Palette
+   ========================================================================== */
+
+:root,
+[data-theme="dark"] {
+  --theme-mode: 'dark';
+
+  /* Surface & Base Colors */
+  --bg-primary: #07090e;
+  --bg-secondary: #0d121d;
+  --bg-card: rgba(16, 23, 38, 0.78);
+  --bg-card-hover: rgba(22, 32, 53, 0.9);
+  --bg-raised: #141d2c;
+  --bg-surface: rgba(10, 15, 26, 0.85);
+  --bg-subtle: rgba(255, 255, 255, 0.03);
+  --bg-overlay: rgba(5, 9, 13, 0.8);
+
+  /* Lines & Borders */
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-hover: rgba(255, 255, 255, 0.16);
+  --border-focus: #6366f1;
+
+  /* Typography */
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --text-on-accent: #ffffff;
+
+  /* Primary Accent & Brand (Electric Indigo) */
+  --accent-primary: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  --accent-soft: rgba(99, 102, 241, 0.15);
+  --accent-ring: rgba(99, 102, 241, 0.25);
+
+  /* Secondary Semantic Accents */
+  --accent-cyan: #06b6d4;
+  --accent-cyan-soft: rgba(6, 182, 212, 0.15);
+  --accent-emerald: #10b981;
+  --accent-emerald-soft: rgba(16, 185, 129, 0.15);
+  --accent-amber: #f59e0b;
+  --accent-amber-soft: rgba(245, 158, 11, 0.15);
+  --accent-rose: #f43f5e;
+  --accent-rose-soft: rgba(244, 63, 94, 0.15);
+
+  /* Ashutosh's Vault Tokens (Dark Mappings) */
+  --brass: #e2b04a;
+  --brass-ink: #1a1405;
+  --brass-soft: rgba(226, 176, 74, 0.15);
+  --sage: #5fbf95;
+  --sage-soft: rgba(95, 191, 149, 0.15);
+  --err: #ef6b6b;
+  --err-soft: rgba(239, 107, 107, 0.15);
+
+  /* Badges */
+  --badge-owner-bg: rgba(245, 158, 11, 0.15);
+  --badge-owner-color: #fcd34d;
+  --badge-owner-border: rgba(245, 158, 11, 0.3);
+
+  --badge-editor-bg: rgba(16, 185, 129, 0.15);
+  --badge-editor-color: #6ee7b7;
+  --badge-editor-border: rgba(16, 185, 129, 0.3);
+
+  --badge-viewer-bg: rgba(6, 182, 212, 0.15);
+  --badge-viewer-color: #67e8f9;
+  --badge-viewer-border: rgba(6, 182, 212, 0.3);
+
+  /* Alerts */
+  --alert-error-bg: rgba(244, 63, 94, 0.12);
+  --alert-error-color: #fda4af;
+  --alert-error-border: rgba(244, 63, 94, 0.3);
+
+  --alert-success-bg: rgba(16, 185, 129, 0.15);
+  --alert-success-color: #6ee7b7;
+  --alert-success-border: rgba(16, 185, 129, 0.3);
+
+  /* Shadows */
+  --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.25);
+
+  /* Background Glow Gradient */
+  --bg-radial: radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+               radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.06) 0%, transparent 40%);
+}
+
+[data-theme="light"] {
+  --theme-mode: 'light';
+
+  /* Surface & Base Colors (From Ashutosh's Light Palette) */
+  --bg-primary: #eef2f5;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --bg-raised: #f4f7f9;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f1f5f8;
+  --bg-overlay: rgba(14, 20, 26, 0.45);
+
+  /* Lines & Borders */
+  --border-color: #d8e0e7;
+  --border-subtle: #e6ebf0;
+  --border-hover: #b5c2cf;
+  --border-focus: #b57d12;
+
+  /* Typography */
+  --text-main: #16212b;
+  --text-muted: #5d6f80;
+  --text-dim: #8a9aaa;
+  --text-on-accent: #ffffff;
+
+  /* Primary Accent & Brand (Ashutosh's Warm Brass Vault Tone) */
+  --accent-primary: #b57d12;
+  --accent-hover: #9c680a;
+  --accent-gradient: linear-gradient(135deg, #b57d12 0%, #9c680a 100%);
+  --accent-soft: rgba(181, 125, 18, 0.12);
+  --accent-ring: rgba(181, 125, 18, 0.25);
+
+  /* Secondary Semantic Accents (Ashutosh's Sage & Red) */
+  --accent-cyan: #1f8a5f;
+  --accent-cyan-soft: rgba(31, 138, 95, 0.12);
+  --accent-emerald: #1f8a5f;
+  --accent-emerald-soft: rgba(31, 138, 95, 0.12);
+  --accent-amber: #b57d12;
+  --accent-amber-soft: rgba(181, 125, 18, 0.12);
+  --accent-rose: #c93b3b;
+  --accent-rose-soft: rgba(201, 59, 59, 0.12);
+
+  /* Ashutosh's Vault Tokens (Light Direct) */
+  --brass: #b57d12;
+  --brass-ink: #ffffff;
+  --brass-soft: rgba(181, 125, 18, 0.12);
+  --sage: #1f8a5f;
+  --sage-soft: rgba(31, 138, 95, 0.12);
+  --err: #c93b3b;
+  --err-soft: rgba(201, 59, 59, 0.12);
+
+  /* Badges */
+  --badge-owner-bg: rgba(181, 125, 18, 0.12);
+  --badge-owner-color: #926208;
+  --badge-owner-border: rgba(181, 125, 18, 0.35);
+
+  --badge-editor-bg: rgba(31, 138, 95, 0.12);
+  --badge-editor-color: #176e4c;
+  --badge-editor-border: rgba(31, 138, 95, 0.35);
+
+  --badge-viewer-bg: rgba(93, 111, 128, 0.12);
+  --badge-viewer-color: #3e5062;
+  --badge-viewer-border: rgba(93, 111, 128, 0.35);
+
+  /* Alerts */
+  --alert-error-bg: rgba(201, 59, 59, 0.08);
+  --alert-error-color: #b32a2a;
+  --alert-error-border: rgba(201, 59, 59, 0.28);
+
+  --alert-success-bg: rgba(31, 138, 95, 0.08);
+  --alert-success-color: #166948;
+  --alert-success-border: rgba(31, 138, 95, 0.28);
+
+  /* Shadows */
+  --shadow-card: 0 4px 16px -2px rgba(22, 33, 43, 0.08), 0 2px 4px -1px rgba(22, 33, 43, 0.04);
+  --shadow-glow: 0 0 20px rgba(181, 125, 18, 0.15);
+
+  /* Background Glow Gradient */
+  --bg-radial: radial-gradient(circle at 15% 15%, rgba(181, 125, 18, 0.05) 0%, transparent 40%),
+               radial-gradient(circle at 85% 85%, rgba(31, 138, 95, 0.05) 0%, transparent 40%);
+}
+
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  line-height: 1.5;
+  background-image: var(--bg-radial);
+  background-attachment: fixed;
+  overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+
+/* Glass & Panel Card Styling */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.glass-card:hover {
+  border-color: var(--border-hover);
+}
+
+/* Inputs & Form Controls */
+.input-field {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease;
+  outline: none;
+}
+
+.input-field::placeholder {
+  color: var(--text-dim);
+}
+
+.input-field:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+  font-family: inherit;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  outline: none;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--accent-gradient);
+  color: var(--text-on-accent);
+  box-shadow: 0 4px 14px var(--accent-ring);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.btn-secondary {
+  background: var(--bg-raised);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
+}
+
+.btn-danger {
+  background: var(--accent-rose-soft);
+  color: var(--accent-rose);
+  border: 1px solid var(--alert-error-border);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(244, 63, 94, 0.25);
+  border-color: var(--accent-rose);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Role Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-owner {
+  background: var(--badge-owner-bg);
+  color: var(--badge-owner-color);
+  border: 1px solid var(--badge-owner-border);
+}
+
+.badge-editor {
+  background: var(--badge-editor-bg);
+  color: var(--badge-editor-color);
+  border: 1px solid var(--badge-editor-border);
+}
+
+.badge-viewer {
+  background: var(--badge-viewer-bg);
+  color: var(--badge-viewer-color);
+  border: 1px solid var(--badge-viewer-border);
+}
+
+.badge-online {
+  background: var(--accent-emerald-soft);
+  color: var(--accent-emerald);
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-emerald);
+  box-shadow: 0 0 10px var(--accent-emerald);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+/* Modal styling */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  max-width: 520px;
+  width: 100%;
+  padding: 2rem;
+  box-shadow: var(--shadow-card);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Tables */
+.vault-table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+}
+
+.vault-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.vault-table th,
+.vault-table td {
+  text-align: left;
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.vault-table th {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--bg-raised);
+}
+
+.vault-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+.vault-table tbody tr:hover {
+  background: var(--bg-raised);
+}
+
+.vault-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+/* Ashutosh's Vault Utility Support */
+.brass { color: var(--brass); }
+.sage { color: var(--sage); }
+.mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
